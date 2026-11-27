@@ -487,29 +487,37 @@ function Start-WinDupeGui {
             return
         }
 
-        foreach ($grp in $result.Groups) {
-            $shortSha = if ($grp.Sha256.Length -ge 12) { $grp.Sha256.Substring(0, 12) } else { $grp.Sha256 }
-            $header = "Grupo #$($grp.GroupId)  ·  $($grp.FileCount) copias  ·  $(Format-WinDupeBytes -Bytes $grp.FileSizeBytes) c/u  ·  Recuperable: $(Format-WinDupeBytes -Bytes $grp.ReclaimableBytes)  ·  SHA-256: $shortSha"
+        $defer = $state.CollectionView.DeferRefresh()
+        try {
+            foreach ($grp in $result.Groups) {
+                $shortSha = if ($grp.Sha256.Length -ge 12) { $grp.Sha256.Substring(0, 12) } else { $grp.Sha256 }
+                $header = "Grupo #$($grp.GroupId)  ·  $($grp.FileCount) copias  ·  $(Format-WinDupeBytes -Bytes $grp.FileSizeBytes) c/u  ·  Recuperable: $(Format-WinDupeBytes -Bytes $grp.ReclaimableBytes)  ·  SHA-256: $shortSha"
 
-            foreach ($f in $grp.Files) {
-                $vm = New-Object WinDupe.Core.DuplicateRowViewModel
-                $vm.GroupId = $grp.GroupId
-                $vm.GroupHeaderKey = $header
-                $vm.FullPath = $f.FullPath
-                $vm.FileName = $f.FileName
-                $vm.DirectoryName = $f.DirectoryName
-                $vm.Extension = $f.Extension
-                $vm.SizeBytes = $f.SizeBytes
-                $vm.SizeHuman = Format-WinDupeBytes -Bytes $f.SizeBytes
-                $vm.LastWriteTime = $f.LastWriteTime
-                $vm.LastWriteTimeStr = $f.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
-                $vm.CreationTime = $f.CreationTime
-                $vm.CreationTimeStr = $f.CreationTime.ToString('yyyy-MM-dd HH:mm')
-                $vm.Sha256 = $f.FullHash
-                $vm.ShortSha = $shortSha
-                $vm.IsPreviewableImage = $previewableExts.Contains($f.Extension)
-                $vm.IsSelected = $false
-                $state.ViewRows.Add($vm)
+                foreach ($f in $grp.Files) {
+                    $vm = New-Object WinDupe.Core.DuplicateRowViewModel
+                    $vm.GroupId = $grp.GroupId
+                    $vm.GroupHeaderKey = $header
+                    $vm.FullPath = $f.FullPath
+                    $vm.FileName = $f.FileName
+                    $vm.DirectoryName = $f.DirectoryName
+                    $vm.Extension = $f.Extension
+                    $vm.SizeBytes = $f.SizeBytes
+                    $vm.SizeHuman = Format-WinDupeBytes -Bytes $f.SizeBytes
+                    $vm.LastWriteTime = $f.LastWriteTime
+                    $vm.LastWriteTimeStr = $f.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
+                    $vm.CreationTime = $f.CreationTime
+                    $vm.CreationTimeStr = $f.CreationTime.ToString('yyyy-MM-dd HH:mm')
+                    $vm.Sha256 = $f.FullHash
+                    $vm.ShortSha = $shortSha
+                    $vm.IsPreviewableImage = $previewableExts.Contains($f.Extension)
+                    $vm.IsSelected = $false
+                    $state.ViewRows.Add($vm)
+                }
+            }
+        }
+        finally {
+            if ($null -ne $defer) {
+                $defer.Dispose()
             }
         }
 
