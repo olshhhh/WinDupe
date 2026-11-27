@@ -43,7 +43,7 @@ function Write-WinDupeErrorLog {
 
         $sb = New-Object System.Text.StringBuilder
         [void]$sb.AppendLine('====================================================================')
-        [void]$sb.AppendLine("AppVersion  : WinDupe 1.2")
+        [void]$sb.AppendLine("AppVersion  : WinDupe 1.3")
         [void]$sb.AppendLine("Timestamp   : $(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffK')")
         [void]$sb.AppendLine("Context     : $Context")
         [void]$sb.AppendLine("PowerShell  : $($PSVersionTable.PSVersion)")

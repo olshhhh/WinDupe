@@ -170,20 +170,26 @@ function Start-WinDupeGui {
         if ($null -eq $ctrl.MenuOpenFolder -and $ctxMenu.Items.Count -ge 4) { $ctrl.MenuOpenFolder = $ctxMenu.Items[3] }
     }
 
-    $collectionView = [System.Windows.Data.CollectionViewSource]::GetDefaultView($state.ViewRows)
-    $collectionView.GroupDescriptions.Add((New-Object System.Windows.Data.PropertyGroupDescription('GroupHeaderKey')))
-    $collectionView.Filter = [System.Predicate[object]]{
-        param($obj)
-        if ([string]::IsNullOrWhiteSpace($state.SearchQuery)) {
-            return $true
+    $bindRowsCollection = {
+        param($rows)
+        $state.ViewRows = $rows
+        $cv = [System.Windows.Data.CollectionViewSource]::GetDefaultView($rows)
+        $cv.GroupDescriptions.Clear()
+        $cv.GroupDescriptions.Add((New-Object System.Windows.Data.PropertyGroupDescription('GroupHeaderKey')))
+        $cv.Filter = [System.Predicate[object]]{
+            param($obj)
+            if ([string]::IsNullOrWhiteSpace($state.SearchQuery)) {
+                return $true
+            }
+            $row = [WinDupe.Core.DuplicateRowViewModel]$obj
+            $q = $state.SearchQuery
+            return ($row.FileName.IndexOf($q, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) -or
+                   ($row.DirectoryName.IndexOf($q, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
         }
-        $row = [WinDupe.Core.DuplicateRowViewModel]$obj
-        $q = $state.SearchQuery
-        return ($row.FileName.IndexOf($q, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) -or
-               ($row.DirectoryName.IndexOf($q, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
+        $state.CollectionView = $cv
+        $ctrl.LstDuplicates.ItemsSource = $cv
     }
-    $state.CollectionView = $collectionView
-    $ctrl.LstDuplicates.ItemsSource = $collectionView
+    & $bindRowsCollection $state.ViewRows
 
     $brushKeep = (New-Object System.Windows.Media.BrushConverter).ConvertFromString('#10B981')
     $brushKeep.Freeze()
@@ -487,39 +493,33 @@ function Start-WinDupeGui {
             return
         }
 
-        $defer = $state.CollectionView.DeferRefresh()
-        try {
-            foreach ($grp in $result.Groups) {
-                $shortSha = if ($grp.Sha256.Length -ge 12) { $grp.Sha256.Substring(0, 12) } else { $grp.Sha256 }
-                $header = "Grupo #$($grp.GroupId)  ·  $($grp.FileCount) copias  ·  $(Format-WinDupeBytes -Bytes $grp.FileSizeBytes) c/u  ·  Recuperable: $(Format-WinDupeBytes -Bytes $grp.ReclaimableBytes)  ·  SHA-256: $shortSha"
+        $newRows = New-Object 'System.Collections.ObjectModel.ObservableCollection[WinDupe.Core.DuplicateRowViewModel]'
+        foreach ($grp in $result.Groups) {
+            $shortSha = if ($grp.Sha256.Length -ge 12) { $grp.Sha256.Substring(0, 12) } else { $grp.Sha256 }
+            $header = "Grupo #$($grp.GroupId)  ·  $($grp.FileCount) copias  ·  $(Format-WinDupeBytes -Bytes $grp.FileSizeBytes) c/u  ·  Recuperable: $(Format-WinDupeBytes -Bytes $grp.ReclaimableBytes)  ·  SHA-256: $shortSha"
 
-                foreach ($f in $grp.Files) {
-                    $vm = New-Object WinDupe.Core.DuplicateRowViewModel
-                    $vm.GroupId = $grp.GroupId
-                    $vm.GroupHeaderKey = $header
-                    $vm.FullPath = $f.FullPath
-                    $vm.FileName = $f.FileName
-                    $vm.DirectoryName = $f.DirectoryName
-                    $vm.Extension = $f.Extension
-                    $vm.SizeBytes = $f.SizeBytes
-                    $vm.SizeHuman = Format-WinDupeBytes -Bytes $f.SizeBytes
-                    $vm.LastWriteTime = $f.LastWriteTime
-                    $vm.LastWriteTimeStr = $f.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
-                    $vm.CreationTime = $f.CreationTime
-                    $vm.CreationTimeStr = $f.CreationTime.ToString('yyyy-MM-dd HH:mm')
-                    $vm.Sha256 = $f.FullHash
-                    $vm.ShortSha = $shortSha
-                    $vm.IsPreviewableImage = $previewableExts.Contains($f.Extension)
-                    $vm.IsSelected = $false
-                    $state.ViewRows.Add($vm)
-                }
+            foreach ($f in $grp.Files) {
+                $vm = New-Object WinDupe.Core.DuplicateRowViewModel
+                $vm.GroupId = $grp.GroupId
+                $vm.GroupHeaderKey = $header
+                $vm.FullPath = $f.FullPath
+                $vm.FileName = $f.FileName
+                $vm.DirectoryName = $f.DirectoryName
+                $vm.Extension = $f.Extension
+                $vm.SizeBytes = $f.SizeBytes
+                $vm.SizeHuman = Format-WinDupeBytes -Bytes $f.SizeBytes
+                $vm.LastWriteTime = $f.LastWriteTime
+                $vm.LastWriteTimeStr = $f.LastWriteTime.ToString('yyyy-MM-dd HH:mm')
+                $vm.CreationTime = $f.CreationTime
+                $vm.CreationTimeStr = $f.CreationTime.ToString('yyyy-MM-dd HH:mm')
+                $vm.Sha256 = $f.FullHash
+                $vm.ShortSha = $shortSha
+                $vm.IsPreviewableImage = $previewableExts.Contains($f.Extension)
+                $vm.IsSelected = $false
+                $newRows.Add($vm)
             }
         }
-        finally {
-            if ($null -ne $defer) {
-                $defer.Dispose()
-            }
-        }
+        & $bindRowsCollection $newRows
 
         if ($state.ViewRows.Count -gt 0) {
             $ctrl.TxtEmptyListHint.Visibility = [System.Windows.Visibility]::Collapsed
