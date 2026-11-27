@@ -583,15 +583,18 @@ function Start-WinDupeGui {
 
             $timer = New-Object System.Windows.Threading.DispatcherTimer
             $timer.Interval = [TimeSpan]::FromMilliseconds(60)
+            $state.PollTimer = $timer
             $timer.Add_Tick({
+                param($sender, $e)
                 $h = $state.ScanHandle
                 if ($null -eq $h) {
-                    $timer.Stop()
+                    if ($null -ne $sender) { $sender.Stop() }
+                    elseif ($null -ne $state.PollTimer) { $state.PollTimer.Stop() }
+                    $state.PollTimer = $null
                     return
                 }
 
-                $evt = $null
-                while ($h.ProgressQueue.TryDequeue([ref]$evt)) {
+                while ($null -ne ($evt = [WinDupe.Core.DuplicateScanner]::TryDequeueProgress($h.ProgressQueue))) {
                     $ctrl.TxtPhaseStatus.Text = "[$($evt.PhaseName)] $($evt.Message)"
                     $pctInt = [int][Math]::Round($evt.Percent)
                     $ctrl.ProgressScan.Value = $pctInt
@@ -602,7 +605,8 @@ function Start-WinDupeGui {
                 }
 
                 if ($h.AsyncResult.IsCompleted) {
-                    $timer.Stop()
+                    if ($null -ne $sender) { $sender.Stop() }
+                    elseif ($null -ne $state.PollTimer) { $state.PollTimer.Stop() }
                     $state.PollTimer = $null
 
                     $scanRes = $null
@@ -644,7 +648,6 @@ function Start-WinDupeGui {
                     }
                 }
             })
-            $state.PollTimer = $timer
             $timer.Start()
         }
         catch {

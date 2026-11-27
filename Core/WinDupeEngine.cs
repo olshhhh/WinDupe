@@ -281,6 +281,16 @@ namespace WinDupe.Core
         private const int AttrRecallOnOpen = 0x00040000;
         private const int AttrRecallOnDataAccess = 0x00400000;
 
+        public static ScanProgressEvent TryDequeueProgress(ConcurrentQueue<ScanProgressEvent> queue)
+        {
+            ScanProgressEvent evt;
+            if (queue != null && queue.TryDequeue(out evt))
+            {
+                return evt;
+            }
+            return null;
+        }
+
         public static ScanResult Scan(
             ScanOptions options,
             ScanController controller,

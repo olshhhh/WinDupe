@@ -135,8 +135,7 @@ function Invoke-WinDupeScanSync {
     $handle = Start-WinDupeScanAsync -BasePath $BasePath -RootPath $RootPath -CategoryKey $CategoryKey -MinimumSizeBytes $MinimumSizeBytes
     try {
         while (-not $handle.AsyncResult.IsCompleted) {
-            $evt = $null
-            while ($handle.ProgressQueue.TryDequeue([ref]$evt)) {
+            while ($null -ne ($evt = [WinDupe.Core.DuplicateScanner]::TryDequeueProgress($handle.ProgressQueue))) {
                 if ($null -ne $OnProgress) {
                     & $OnProgress $evt
                 }
@@ -144,8 +143,7 @@ function Invoke-WinDupeScanSync {
             Start-Sleep -Milliseconds 60
         }
 
-        $finalEvt = $null
-        while ($handle.ProgressQueue.TryDequeue([ref]$finalEvt)) {
+        while ($null -ne ($finalEvt = [WinDupe.Core.DuplicateScanner]::TryDequeueProgress($handle.ProgressQueue))) {
             if ($null -ne $OnProgress) {
                 & $OnProgress $finalEvt
             }
