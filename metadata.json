@@ -1,0 +1,6 @@
+{
+  "name": "WinDupe",
+  "description": "Buscador y limpiador ultra-rápido de archivos duplicados para Windows 10/11 en PowerShell, C# (Add-Type) y WPF oscuro sin UAC.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
