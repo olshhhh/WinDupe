@@ -94,9 +94,9 @@ function Start-WinDupeGui {
         BtnSendToRecycle        = $window.FindName('BtnSendToRecycle')
         TxtEmptyListHint        = $window.FindName('TxtEmptyListHint')
         LstDuplicates           = $window.FindName('LstDuplicates')
-        MenuMarkFolderDuplicates= $window.FindName('MenuMarkFolderDuplicates')
-        MenuKeepThis            = $window.FindName('MenuKeepThis')
-        MenuOpenFolder          = $window.FindName('MenuOpenFolder')
+        MenuMarkFolderDuplicates= $null
+        MenuKeepThis            = $null
+        MenuOpenFolder          = $null
         TxtPreviewEmpty         = $window.FindName('TxtPreviewEmpty')
         PanelPreviewContent     = $window.FindName('PanelPreviewContent')
         ImgPreview              = $window.FindName('ImgPreview')
@@ -160,7 +160,17 @@ function Start-WinDupeGui {
         SearchQuery    = ''
     }
 
-    $collectionView = New-Object System.Windows.Data.ListCollectionView($state.ViewRows)
+    $ctxMenu = $ctrl.LstDuplicates.ContextMenu
+    if ($null -ne $ctxMenu) {
+        $ctrl.MenuMarkFolderDuplicates = $window.FindName('MenuMarkFolderDuplicates')
+        if ($null -eq $ctrl.MenuMarkFolderDuplicates -and $ctxMenu.Items.Count -ge 1) { $ctrl.MenuMarkFolderDuplicates = $ctxMenu.Items[0] }
+        $ctrl.MenuKeepThis = $window.FindName('MenuKeepThis')
+        if ($null -eq $ctrl.MenuKeepThis -and $ctxMenu.Items.Count -ge 2) { $ctrl.MenuKeepThis = $ctxMenu.Items[1] }
+        $ctrl.MenuOpenFolder = $window.FindName('MenuOpenFolder')
+        if ($null -eq $ctrl.MenuOpenFolder -and $ctxMenu.Items.Count -ge 4) { $ctrl.MenuOpenFolder = $ctxMenu.Items[3] }
+    }
+
+    $collectionView = [System.Windows.Data.CollectionViewSource]::GetDefaultView($state.ViewRows)
     $collectionView.GroupDescriptions.Add((New-Object System.Windows.Data.PropertyGroupDescription('GroupHeaderKey')))
     $collectionView.Filter = [System.Predicate[object]]{
         param($obj)
@@ -715,22 +725,28 @@ function Start-WinDupeGui {
     })
 
     # Menu contextual & acciones de carpeta
-    $ctrl.MenuMarkFolderDuplicates.Add_Click({
-        if ($null -ne $state.ActiveRow) {
-            & $markDuplicatesInFolder $state.ActiveRow.DirectoryName
-        }
-    })
-    $ctrl.MenuKeepThis.Add_Click({
-        if ($null -ne $state.ActiveRow) {
-            $state.ActiveRow.IsSelected = $false
-            & $refreshSelectionKpis
-        }
-    })
-    $ctrl.MenuOpenFolder.Add_Click({
-        if ($null -ne $state.ActiveRow -and (Test-Path -LiteralPath $state.ActiveRow.FullPath -PathType Leaf)) {
-            Start-Process -FilePath 'explorer.exe' -ArgumentList "/select,`"$($state.ActiveRow.FullPath)`""
-        }
-    })
+    if ($null -ne $ctrl.MenuMarkFolderDuplicates) {
+        $ctrl.MenuMarkFolderDuplicates.Add_Click({
+            if ($null -ne $state.ActiveRow) {
+                & $markDuplicatesInFolder $state.ActiveRow.DirectoryName
+            }
+        })
+    }
+    if ($null -ne $ctrl.MenuKeepThis) {
+        $ctrl.MenuKeepThis.Add_Click({
+            if ($null -ne $state.ActiveRow) {
+                $state.ActiveRow.IsSelected = $false
+                & $refreshSelectionKpis
+            }
+        })
+    }
+    if ($null -ne $ctrl.MenuOpenFolder) {
+        $ctrl.MenuOpenFolder.Add_Click({
+            if ($null -ne $state.ActiveRow -and (Test-Path -LiteralPath $state.ActiveRow.FullPath -PathType Leaf)) {
+                Start-Process -FilePath 'explorer.exe' -ArgumentList "/select,`"$($state.ActiveRow.FullPath)`""
+            }
+        })
+    }
 
     $ctrl.BtnMarkFolderDuplicates.Add_Click({
         if ($null -ne $state.ActiveRow) {
